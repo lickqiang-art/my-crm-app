@@ -9,260 +9,179 @@
         'short_name': 'CRM App',
         'start_url': '.',
         'display': 'standalone',
-        'background_color': '#f0f4f8',
-        'theme_color': '#4facfe',
+        'background_color': '#f9fafb',
+        'theme_color': '#6366f1',
         'icons': [{'src': 'icon.png', 'sizes': '192x192', 'type': 'image/png'}]
     }">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-financial/dist/chartjs-chart-financial.min.js"></script>
-    <link href="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-financial@1.0.1/dist/chartjs-chart-financial.min.js"></script>
+    <!-- FullCalendar -->
+    <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Tailwind CSS CDN for modern UI -->
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { font-family: 'Arial', sans-serif; background: #f0f4f8; color: #333; margin: 0; padding: 0; overflow-y: auto; }
-        #header { background: linear-gradient(to right, #4facfe, #00f2fe); height: 60px; display: flex; align-items: center; justify-content: center; color: white; font-size: 20px; position: fixed; top: 0; left: 0; right: 0; z-index: 10; }
-        #app-container { margin-top: 60px; display: flex; flex-direction: column; }
-        .section { padding: 20px; }
-        .card { background: white; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); padding: 15px; margin-bottom: 20px; }
-        .card:hover { box-shadow: 0 8px 16px rgba(0,0,0,0.12); }
-        button { background: #3498db; color: white; border: none; padding: 10px 16px; border-radius: 5px; cursor: pointer; }
-        button:hover { background: #2980b9; }
-        button.delete { background: #e74c3c; }
-        button.delete:hover { background: #c0392b; }
-        .todo-item, .list-item { display: flex; align-items: center; padding: 10px; border-bottom: 1px solid #eee; }
-        .todo-item input[type="checkbox"] { margin-right: 10px; }
-        .todo-item span { flex: 1; }
-        .urgent { color: #e74c3c; font-weight: bold; }
-        #add-button { position: fixed; bottom: 20px; right: 20px; background: #3498db; color: white; border: none; width: 50px; height: 50px; border-radius: 50%; font-size: 24px; cursor: pointer; z-index: 10; }
-        #add-button:hover { background: #2980b9; }
-        .add-forms { display: flex; gap: 20px; }
-        .add-form { flex: 1; }
-        .add-form input, .add-form select { width: 100%; margin-bottom: 10px; padding: 8px; }
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 20; align-items: center; justify-content: center; }
-        .modal-content {
-            background: white;
-            padding: 30px; /* 增加padding让内部更宽敞 */
-            border-radius: 15px; /* 更大圆角 */
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2); /* 更柔和阴影 */
-            width: 90%;
-            max-width: 500px; /* 稍宽一点，便于表单 */
+        /* Custom Tailwind overrides for neumorphic/gradient style */
+        body { font-family: 'Roboto', sans-serif; }
+        .neumorphic { box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 -4px 6px rgba(255, 255, 255, 0.5); }
+        .gradient-bg { background: linear-gradient(135deg, #6366f1, #ec4899); }
+        .card-hover:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(99, 102, 241, 0.2); }
+        table th { background: linear-gradient(to right, #6366f1, #a855f7); }
+        table td { transition: background-color 0.3s; }
+        table tr:hover td { background-color: #f3e8ff; }
+        /* Horizontal screen hack */
+        @media (orientation: portrait) {
+            html, body { height: 100vw; width: 100vh; transform: rotate(90deg); transform-origin: top left; position: absolute; top: 0; left: 100%; overflow: hidden; }
+            #app-container { margin-top: 0; }
         }
-
-        /* 表单字段样式 */
-        .modal-content label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: bold;
-            color: #333;
-        }
-        .modal-content input, .modal-content select {
-            width: 100%;
-            padding: 10px; /* 更大输入区 */
-            margin-bottom: 15px;
-            border: 1px solid #ccc;
-            border-radius: 5px; /* 圆角输入框 */
-            box-sizing: border-box;
-        }
-        .modal-content input:focus, .modal-content select:focus {
-            border-color: #3498db; /* 焦点时蓝边 */
-            outline: none;
-        }
-
-        /* 按钮样式覆盖（仅影响模态内按钮） */
-        .modal-content button {
-            padding: 12px 20px; /* 更大按钮 */
-            margin-right: 10px;
-            border-radius: 5px;
-            border: none;
-            color: white;
-            cursor: pointer;
-        }
-        .modal-content button:first-of-type { /* 保存按钮 */
-            background: linear-gradient(to right, #3498db, #2980b9); /* 渐变蓝 */
-        }
-        .modal-content button:last-of-type { /* 取消按钮 */
-            background: #bdc3c7; /* 灰色 */
-            color: #2c3e50;
-        }
-        .modal-content button:hover {
-            opacity: 0.9; /* hover 透明度 */
-        }
-        /* 标签样式 */
-        .tag { display: inline-block; padding: 4px 8px; margin: 2px; border-radius: 12px; font-size: 12px; color: white; }
-        @media (max-width: 768px) { .add-forms { flex-direction: column; } }
-        #taskProgress { font-weight: bold; margin-top: 10px; }
-        table { width: 100%; border-collapse: collapse; overflow-x: auto; display: block; }
-        th { background: #3498db; color: white; padding: 8px; text-align: left; }
-        td { padding: 8px; border-bottom: 1px solid #eee; }
-        .yes { color: green; }
-        .no { color: red; }
-        @media (max-width: 768px) { table { overflow-x: auto; } }
     </style>
 </head>
-<body>
-    <div id="header">分析师CRM App</div>
-    <div id="app-container">
-        <!-- 1. 顶部: 任务列表 -->
-        <section id="tasks-section" class="section card">
-            <h2>当前任务列表 (本周)</h2>
-            <ul id="taskList"></ul>
-            <div id="taskProgress">进度: 0/0 (0%) <progress id="progressBar" value="0" max="100"></progress></div>
-            <button onclick="resetWeeklyTasks()">重置本周任务</button>
+<body class="bg-gray-50 text-gray-800">
+    <header id="header" class="gradient-bg text-white h-16 flex items-center justify-center text-xl font-bold fixed top-0 left-0 right-0 z-10 shadow-lg">
+        分析师CRM App
+    </header>
+    <div id="app-container" class="pt-16 px-4 md:px-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <!-- Tasks Section -->
+        <section id="tasks-section" class="card neumorphic bg-white rounded-2xl p-6 card-hover col-span-1">
+            <h2 class="text-lg font-bold mb-4 flex items-center"><i class="fas fa-tasks mr-2 text-indigo-500"></i>当前任务列表 (本周)</h2>
+            <ul id="taskList" class="space-y-4"></ul>
+            <div id="taskProgress" class="mt-4 font-bold text-gray-700"></div>
+            <button onclick="resetWeeklyTasks()" class="mt-4 w-full gradient-bg text-white py-2 rounded-lg font-bold hover:opacity-90">重置本周任务</button>
+            <button onclick="getAISuggestion()" class="mt-4 w-full bg-indigo-500 text-white py-2 rounded-lg font-bold hover:opacity-90">AI 任务建议</button> <!-- 这里加了按钮 -->
         </section>
 
-        <!-- 2. 中间: 日历和待办列表 -->
-        <section id="calendar-section" class="section card">
-            <h2>日历</h2>
-            <div id="calendar-container"></div>
-        </section>
-        <section id="todo-list-section" class="section card">
-            <h2>详细待办列表</h2>
-            <ul id="todoList"></ul>
+        <!-- Calendar Section -->
+        <section id="calendar-section" class="card neumorphic bg-white rounded-2xl p-6 card-hover col-span-1 md:col-span-2">
+            <h2 class="text-lg font-bold mb-4 flex items-center"><i class="fas fa-calendar-alt mr-2 text-indigo-500"></i>日历</h2>
+            <div id="calendar-container" class="min-h-[400px]"></div>
         </section>
 
-        <!-- 4. 第四部分: 添加区域 -->
-        <section id="add-section" class="section card">
-            <h2>添加客户/公司</h2>
-            <div class="add-forms">
+        <!-- Todo List Section -->
+        <section id="todo-list-section" class="card neumorphic bg-white rounded-2xl p-6 card-hover col-span-1">
+            <h2 class="text-lg font-bold mb-4 flex items-center"><i class="fas fa-list mr-2 text-indigo-500"></i>详细待办列表</h2>
+            <ul id="todoList" class="space-y-4"></ul>
+        </section>
+
+        <!-- Add Section -->
+        <section id="add-section" class="card neumorphic bg-white rounded-2xl p-6 card-hover col-span-1 md:col-span-2 lg:col-span-3">
+            <h2 class="text-lg font-bold mb-4 flex items-center"><i class="fas fa-plus-circle mr-2 text-indigo-500"></i>添加客户/公司</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div class="add-form">
-                    <h3>添加客户</h3>
-                    <label>名称:</label><input id="clientName"><br>
-                    <label>重要度 (5最高-1最低):</label><select id="clientImportance"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select><br>
-                    <label>亲密度:</label><select id="clientQuality"><option>S</option><option>A</option><option>B</option><option>C</option><option>D</option><option>E</option></select><br>
-                    <label>职位:</label><input id="clientPosition"><br>
-                    <label>最后联系时间:</label><input id="clientLastContact" type="date"><br>
-                    <label>标签:</label><select id="clientTags" multiple></select><br>
-                    <button onclick="addNewTag('client')">新建标签</button>
-                    <button onclick="addClient()">保存客户</button>
+                    <h3 class="font-semibold mb-2">添加客户</h3>
+                    <label class="block text-sm font-medium">名称:</label><input id="clientName" class="w-full p-2 border rounded-lg mb-3">
+                    <label class="block text-sm font-medium">重要度:</label><select id="clientImportance" class="w-full p-2 border rounded-lg mb-3"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select>
+                    <label class="block text-sm font-medium">亲密度:</label><select id="clientQuality" class="w-full p-2 border rounded-lg mb-3"><option>S</option><option>A</option><option>B</option><option>C</option><option>D</option><option>E</option></select>
+                    <label class="block text-sm font-medium">职位:</label><input id="clientPosition" class="w-full p-2 border rounded-lg mb-3">
+                    <label class="block text-sm font-medium">最后联系时间:</label><input id="clientLastContact" type="date" class="w-full p-2 border rounded-lg mb-3">
+                    <label class="block text-sm font-medium">标签:</label><select id="clientTags" multiple class="w-full p-2 border rounded-lg mb-3"></select>
+                    <button onclick="addNewTag('client')" class="text-indigo-500 hover:underline">新建标签</button>
+                    <button onclick="addClient()" class="mt-2 w-full gradient-bg text-white py-2 rounded-lg font-bold">保存客户</button>
                 </div>
                 <div class="add-form">
-                    <h3>添加公司</h3>
-                    <label>名称:</label><input id="companyName"><br>
-                    <label>重要度 (5最高-1最低):</label><select id="companyImportance"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select><br>
-                    <label>亲密度:</label><select id="companyQuality"><option>S</option><option>A</option><option>B</option><option>C</option><option>D</option><option>E</option></select><br>
-                    <label>公司领导:</label><input id="companyCode"><br>
-                    <label>职位:</label><input id="companyPosition"><br>
-                    <label>最后联系时间:</label><input id="companyLastContact" type="date"><br>
-                    <label>标签:</label><select id="companyTags" multiple></select><br>
-                    <button onclick="addNewTag('company')">新建标签</button>
-                    <button onclick="addCompany()">保存公司</button>
+                    <h3 class="font-semibold mb-2">添加公司</h3>
+                    <label class="block text-sm font-medium">名称:</label><input id="companyName" class="w-full p-2 border rounded-lg mb-3">
+                    <label class="block text-sm font-medium">重要度:</label><select id="companyImportance" class="w-full p-2 border rounded-lg mb-3"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select>
+                    <label class="block text-sm font-medium">亲密度:</label><select id="companyQuality" class="w-full p-2 border rounded-lg mb-3"><option>S</option><option>A</option><option>B</option><option>C</option><option>D</option><option>E</option></select>
+                    <label class="block text-sm font-medium">公司领导:</label><input id="companyCode" class="w-full p-2 border rounded-lg mb-3">
+                    <label class="block text-sm font-medium">职位:</label><input id="companyPosition" class="w-full p-2 border rounded-lg mb-3">
+                    <label class="block text-sm font-medium">最后联系时间:</label><input id="companyLastContact" type="date" class="w-full p-2 border rounded-lg mb-3">
+                    <label class="block text-sm font-medium">标签:</label><select id="companyTags" multiple class="w-full p-2 border rounded-lg mb-3"></select>
+                    <button onclick="addNewTag('company')" class="text-indigo-500 hover:underline">新建标签</button>
+                    <button onclick="addCompany()" class="mt-2 w-full gradient-bg text-white py-2 rounded-lg font-bold">保存公司</button>
                 </div>
             </div>
         </section>
 
-        <!-- 5. 底部: 客户和公司列表 -->
-        <section id="lists-section" class="section card">
-            <h2>客户和公司列表</h2>
-            <button onclick="showList('clients')">显示客户</button>
-            <button onclick="showList('companies')">显示公司</button>
-            <div id="clientListContainer" style="display: none;">
-                <table id="clientTable" border="1" style="width: 100%; border-collapse: collapse;">
-                    <thead>
-                        <tr>
-                            <th>序号</th>
-                            <th>单位</th>
-                            <th>名称</th>
-                            <th>标签</th>
-                            <th>重要程度</th>
-                            <th>亲密度</th>
-                            <th>最近1月是否联系</th>
-                            <th>最近2月是否联系</th>
-                            <th>最新联系情况</th>
-                            <th>操作</th>
-                        </tr>
-                    </thead>
+        <!-- Lists Section -->
+        <section id="lists-section" class="card neumorphic bg-white rounded-2xl p-6 card-hover col-span-1 md:col-span-2 lg:col-span-3">
+            <h2 class="text-lg font-bold mb-4 flex items-center"><i class="fas fa-users mr-2 text-indigo-500"></i>客户和公司列表</h2>
+            <button onclick="showList('clients')" class="mr-4 gradient-bg text-white py-2 px-4 rounded-lg">显示客户</button>
+            <button onclick="showList('companies')" class="gradient-bg text-white py-2 px-4 rounded-lg">显示公司</button>
+            <div id="clientListContainer" class="mt-4" style="display: none;">
+                <table id="clientTable" class="w-full">
+                    <thead><tr><th>序号</th><th>单位</th><th>名称</th><th>标签</th><th>重要程度</th><th>亲密度</th><th>最近1月是否联系</th><th>最近2月是否联系</th><th>最新联系情况</th><th>操作</th></tr></thead>
                     <tbody></tbody>
                 </table>
             </div>
-            <div id="companyListContainer" style="display: none;">
-                <table id="companyTable" border="1" style="width: 100%; border-collapse: collapse;">
-                    <thead>
-                        <tr>
-                            <th>公司名称</th>
-                            <th>领导</th>
-                            <th>职称</th>
-                            <th>最近1月交流</th>
-                            <th>最近2月交流</th>
-                            <th>最近3月交流</th>
-                            <th>是否调研</th>
-                            <th>是否有报告</th>
-                            <th>邀请策略会</th>
-                            <th>接反路演</th>
-                            <th>操作</th>
-                        </tr>
-                    </thead>
+            <div id="companyListContainer" class="mt-4" style="display: none;">
+                <table id="companyTable" class="w-full">
+                    <thead><tr><th>公司名称</th><th>领导</th><th>职称</th><th>最近1月交流</th><th>最近2月交流</th><th>最近3月交流</th><th>是否调研</th><th>是否有报告</th><th>邀请策略会</th><th>接反路演</th><th>操作</th></tr></thead>
                     <tbody></tbody>
                 </table>
             </div>
         </section>
 
-        <!-- 3. 第三部分: K线图 (移动到最后) -->
-        <section id="kchart-section" class="section card">
-            <h2>关键指标K线图</h2>
-            <div>时间范围: <select id="kchartRange" onchange="initKChart(parseInt(this.value))"><option value="7">7天</option><option value="14" selected>14天</option><option value="30">30天</option></select></div>
-            <canvas id="myChart" width="800" height="240"></canvas>
-            <p id="kchartInfo">K线数据: 基于每天得分（无数据时默认为0）</p>
+        <!-- KChart Section -->
+        <section id="kchart-section" class="card neumorphic bg-white rounded-2xl p-6 card-hover col-span-1 md:col-span-2 lg:col-span-3">
+            <h2 class="text-lg font-bold mb-4 flex items-center"><i class="fas fa-chart-line mr-2 text-indigo-500"></i>关键指标K线图</h2>
+            <div class="mb-4">时间范围: <select id="kchartRange" onchange="initKChart(parseInt(this.value))" class="p-2 border rounded-lg"><option value="7">7天</option><option value="14" selected>14天</option><option value="30">30天</option></select></div>
+            <canvas id="myChart" class="w-full h-60"></canvas>
+            <p id="kchartInfo" class="mt-2 text-sm text-gray-600">K线数据: 基于每天得分（无数据时默认为0）</p>
         </section>
     </div>
 
-    <!-- 右上角加号（浮动按钮） -->
-    <button id="add-button" onclick="showAddModal()">+</button>
+    <!-- Add Button -->
+    <button id="add-button" onclick="showAddModal()" class="fixed bottom-8 right-8 gradient-bg text-white w-16 h-16 rounded-full text-3xl shadow-lg hover:scale-110 transition-transform">+</button>
 
-    <!-- 添加模态（快速添加客户/任务） -->
-    <div id="addModal" class="modal">
-        <div class="modal-content">
-            <h3>快速添加</h3>
-            <button style="float: right; background: none; border: none; font-size: 20px; cursor: pointer; color: #666;" onclick="closeAddModal()">×</button>
-            <select id="addType"><option value="client">客户</option><option value="task">任务</option><option value="company">公司</option></select>
-            <!-- 动态表单基于类型 -->
-            <div id="addFormContent"></div>
-            <button onclick="saveQuickAdd()">保存</button>
-            <button onclick="closeAddModal()">取消</button>
+    <!-- Add Modal -->
+    <div id="addModal" class="modal fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="modal-content bg-white rounded-2xl p-8 shadow-2xl max-w-md w-full">
+            <h3 class="text-lg font-bold mb-4">快速添加</h3>
+            <button class="absolute top-4 right-4 text-gray-500 hover:text-gray-700" onclick="closeAddModal()">×</button>
+            <select id="addType" class="w-full p-2 border rounded-lg mb-4"><option value="client">客户</option><option value="task">任务</option><option value="company">公司</option></select>
+            <div id="addFormContent" class="space-y-4"></div>
+            <button onclick="saveQuickAdd()" class="mt-4 w-full gradient-bg text-white py-2 rounded-lg font-bold">保存</button>
+            <button onclick="closeAddModal()" class="mt-2 w-full bg-gray-200 text-gray-800 py-2 rounded-lg font-bold">取消</button>
         </div>
     </div>
 
-    <!-- 编辑模态（新增，选项同添加） -->
-    <div id="editModal" class="modal">
-        <div class="modal-content">
-            <h3>编辑客户/公司</h3>
-            <button style="float: right; background: none; border: none; font-size: 20px; cursor: pointer; color: #666;" onclick="closeEditModal()">×</button>
+    <!-- Edit Modal -->
+    <div id="editModal" class="modal fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="modal-content bg-white rounded-2xl p-8 shadow-2xl max-w-md w-full">
+            <h3 class="text-lg font-bold mb-4">编辑客户/公司</h3>
+            <button class="absolute top-4 right-4 text-gray-500 hover:text-gray-700" onclick="closeEditModal()">×</button>
             <input type="hidden" id="editType">
             <input type="hidden" id="editIndex">
-            <label>名称:</label><input id="editName"><br>
-            <label>重要度 (5最高-1最低):</label><select id="editImportance"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select><br>
-            <label>亲密度:</label><select id="editQuality"><option>S</option><option>A</option><option>B</option><option>C</option><option>D</option><option>E</option></select><br>
-            <label>代码:</label><input id="editCode"><br>
-            <label>职位:</label><input id="editPosition"><br>
-            <label>联系方式:</label><input id="editContact"><br>
-            <label>最后联系时间:</label><input id="editLastContact" type="date"><br>
-            <label>标签:</label><select id="editTags" multiple></select><br>
-            <button onclick="addNewTag('edit')">新建标签</button>
-            <button onclick="saveEdit()">保存</button>
-            <button onclick="closeEditModal()">取消</button>
+            <label class="block text-sm font-medium">名称:</label><input id="editName" class="w-full p-2 border rounded-lg mb-3">
+            <label class="block text-sm font-medium">重要度:</label><select id="editImportance" class="w-full p-2 border rounded-lg mb-3"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select>
+            <label class="block text-sm font-medium">亲密度:</label><select id="editQuality" class="w-full p-2 border rounded-lg mb-3"><option>S</option><option>A</option><option>B</option><option>C</option><option>D</option><option>E</option></select>
+            <label class="block text-sm font-medium">代码:</label><input id="editCode" class="w-full p-2 border rounded-lg mb-3">
+            <label class="block text-sm font-medium">职位:</label><input id="editPosition" class="w-full p-2 border rounded-lg mb-3">
+            <label class="block text-sm font-medium">联系方式:</label><input id="editContact" class="w-full p-2 border rounded-lg mb-3">
+            <label class="block text-sm font-medium">最后联系时间:</label><input id="editLastContact" type="date" class="w-full p-2 border rounded-lg mb-3">
+            <label class="block text-sm font-medium">标签:</label><select id="editTags" multiple class="w-full p-2 border rounded-lg mb-3"></select>
+            <button onclick="addNewTag('edit')" class="text-indigo-500 hover:underline">新建标签</button>
+            <button onclick="saveEdit()" class="mt-4 w-full gradient-bg text-white py-2 rounded-lg font-bold">保存</button>
+            <button onclick="closeEditModal()" class="mt-2 w-full bg-gray-200 text-gray-800 py-2 rounded-lg font-bold">取消</button>
         </div>
     </div>
 
-    <!-- 历史模态框 -->
-    <div id="historyModal" class="modal">
-        <div class="modal-content">
-            <h3 id="historyTitle"></h3>
-            <ul id="historyList"></ul>
-            <button onclick="closeHistoryModal()">关闭</button>
+    <!-- History Modal -->
+    <div id="historyModal" class="modal fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="modal-content bg-white rounded-2xl p-8 shadow-2xl max-w-md w-full">
+            <h3 id="historyTitle" class="text-lg font-bold mb-4"></h3>
+            <ul id="historyList" class="space-y-2"></ul>
+            <button onclick="closeHistoryModal()" class="mt-4 w-full bg-gray-200 text-gray-800 py-2 rounded-lg font-bold">关闭</button>
         </div>
     </div>
 
-    <!-- 日历详情模态（新增） -->
-    <div id="calendarDetailModal" class="modal">
-        <div class="modal-content">
-            <h3>当天事件详情</h3>
-            <button style="float: right; background: none; border: none; font-size: 20px; cursor: pointer; color: #666;" onclick="closeCalendarDetailModal()">×</button>
-            <ul id="calendarDetailList"></ul>
-            <button onclick="closeCalendarDetailModal()">关闭</button>
+    <!-- Calendar Detail Modal -->
+    <div id="calendarDetailModal" class="modal fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="modal-content bg-white rounded-2xl p-8 shadow-2xl max-w-md w-full">
+            <h3 class="text-lg font-bold mb-4">当天事件详情</h3>
+            <button class="absolute top-4 right-4 text-gray-500 hover:text-gray-700" onclick="closeCalendarDetailModal()">×</button>
+            <ul id="calendarDetailList" class="space-y-2"></ul>
+            <button onclick="closeCalendarDetailModal()" class="mt-4 w-full bg-gray-200 text-gray-800 py-2 rounded-lg font-bold">关闭</button>
         </div>
     </div>
 
     <script src="script.js"></script>
     <script>
-        // 显示列表
         function showList(type) {
             document.getElementById('clientListContainer').style.display = type === 'clients' ? 'block' : 'none';
             document.getElementById('companyListContainer').style.display = type === 'companies' ? 'block' : 'none';
