@@ -466,9 +466,7 @@ function addClient() {
         name: document.getElementById('clientName').value,
         importance: document.getElementById('clientImportance').value,
         quality: document.getElementById('clientQuality').value,
-        code: document.getElementById('clientCode').value,
         position: document.getElementById('clientPosition').value,
-        contact: document.getElementById('clientContact').value,
         tags: Array.from((document.getElementById('clientTags') || {}).selectedOptions || []).map(o => o.value),
         addedDate: new Date().toLocaleDateString(),
         lastContactDate: (document.getElementById('clientLastContact') && document.getElementById('clientLastContact').value) ? document.getElementById('clientLastContact').value : new Date().toISOString().split('T')[0],
@@ -501,7 +499,6 @@ function addCompany() {
         quality: document.getElementById('companyQuality').value,
         code: document.getElementById('companyCode').value,
         position: document.getElementById('companyPosition').value,
-        contact: document.getElementById('companyContact').value,
         tags: Array.from((document.getElementById('companyTags') || {}).selectedOptions || []).map(o => o.value),
         addedDate: new Date().toLocaleDateString(),
         lastContactDate: (document.getElementById('companyLastContact') && document.getElementById('companyLastContact').value) ? document.getElementById('companyLastContact').value : new Date().toISOString().split('T')[0],
@@ -684,7 +681,10 @@ function initCalendar() {
         initialView: 'dayGridMonth',
         height: 'auto',
         headerToolbar: { left: 'prev,next today', center: 'title', right: 'dayGridMonth,dayGridWeek' },
-        events: []
+        events: [],
+        dateClick: function(info) {
+            showCalendarDetail(info.dateStr);
+        }
     });
     _calendarInstance.render();
     populateCalendar();
@@ -704,7 +704,7 @@ function populateCalendar() {
     // 把 tasks 中的提醒显示为日历事件（今日提醒，红色点）
     (tasks || []).forEach(t => {
         const today = new Date().toISOString().slice(0,10);
-        events.push({ title: `联系 ${t.name}: ${t.suggestion}`, start: today, color: '#ff6b6b' });
+        events.push({ title: `联系 ${t.name}`, start: today, color: '#ff6b6b' });
     });
     // 更新日历事件
     try {
@@ -721,7 +721,7 @@ function updateCalendarEvents() {
     const events = [];
     tasks.forEach(task => {
         const event = {
-            title: `联系 ${task.name}: ${task.suggestion}`,
+            title: `联系 ${task.name}`,
             start: new Date().toISOString().slice(0,10),
             color: task.completed ? '#3498db' : '#e74c3c' // 蓝色已完成，红色未完成
         };
@@ -833,6 +833,7 @@ function completeTask(clientId) {
         localStorage.setItem('todos', JSON.stringify(todos));
         renderTodos();
         updateCalendarEvents();
+        initKChart(); // 刷新K线图
         renderLists();
     }
 }
@@ -908,7 +909,7 @@ function renderTodoList() {
         else if (task.urgency > 50) color = 'orange';
         li.innerHTML = `
             <input type="checkbox" ${task.completed ? 'checked' : ''} onchange="updateTask(this, ${index})">
-            <span style="color: ${color};">${task.description || `${task.type === 'manual' ? '[手动]' : '[自动]'} 联系 ${task.name}: ${task.suggestion}`}</span>
+            <span style="color: ${color};">${task.description || `${task.type === 'manual' ? '[手动]' : '[自动]'} 联系 ${task.name}`}</span>
         `;
         todoList.appendChild(li);
     });
@@ -929,6 +930,7 @@ function updateTask(checkbox, index) {
         }
         displayTasks();
         updateCalendarEvents();
+        initKChart(); // 刷新K线图
         renderTodoList();
         updateTaskProgress(); // 更新进度条
     }
@@ -965,9 +967,7 @@ function showAddModal() {
                 <label>名称:</label><input id="quickName"><br>
                 <label>重要度 (5最高-1最低):</label><select id="quickImportance"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select><br>
                 <label>亲密度:</label><select id="quickQuality"><option>S</option><option>A</option><option>B</option><option>C</option><option>D</option><option>E</option></select><br>
-                <label>代码:</label><input id="quickCode"><br>
                 <label>职位:</label><input id="quickPosition"><br>
-                <label>联系方式:</label><input id="quickContact"><br>
                 <label>最后联系时间:</label><input id="quickLastContact" type="date"><br>
                 <label>标签:</label><select id="quickTags" multiple></select><br>
                 <button onclick="addNewTag('client')">新建标签</button>
@@ -977,9 +977,8 @@ function showAddModal() {
                 <label>名称:</label><input id="quickName"><br>
                 <label>重要度 (5最高-1最低):</label><select id="quickImportance"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select><br>
                 <label>亲密度:</label><select id="quickQuality"><option>S</option><option>A</option><option>B</option><option>C</option><option>D</option><option>E</option></select><br>
-                <label>代码:</label><input id="quickCode"><br>
+                <label>公司领导:</label><input id="quickCode"><br>
                 <label>职位:</label><input id="quickPosition"><br>
-                <label>联系方式:</label><input id="quickContact"><br>
                 <label>最后联系时间:</label><input id="quickLastContact" type="date"><br>
                 <label>标签:</label><select id="quickTags" multiple></select><br>
                 <button onclick="addNewTag('company')">新建标签</button>
@@ -1007,16 +1006,24 @@ function updateTaskForm() {
             <label>任务名称:</label><input id="manualName"><br>
             <label>行动:</label><input id="manualAction"><br>
             <label>奖励 (1-20):</label><input id="manualReward" type="number" min="1" max="20"><br>
-            <label>时间范围:</label><select id="manualTime"><option>本周</option><option>本周+下周</option></select><br>
+            <label>时间:</label><select id="manualTime"><option value="today">今天</option><option value="tomorrow">明天</option><option value="this_week">本周</option><option value="this_next_week">本周+下周</option><option value="custom">自定义日期</option></select><br>
+            <div id="customDate" style="display: none;"><label>自定义日期:</label><input id="manualCustomDate" type="date"><br></div>
         `;
+        document.getElementById('manualTime').onchange = () => {
+            document.getElementById('customDate').style.display = document.getElementById('manualTime').value === 'custom' ? 'block' : 'none';
+        };
     } else if (subType === 'contact') {
         details.innerHTML = `
             <label>选择模式:</label><select id="contactMode"><option>top10</option><option>list</option><option>random</option></select><br>
             <div id="contactSelection"></div>
-            <label>时间范围:</label><select id="contactTime"><option>本周</option><option>本周+下周</option></select><br>
+            <label>时间:</label><select id="contactTime"><option value="today">今天</option><option value="tomorrow">明天</option><option value="this_week">本周</option><option value="this_next_week">本周+下周</option><option value="custom">自定义日期</option></select><br>
+            <div id="customDateContact" style="display: none;"><label>自定义日期:</label><input id="contactCustomDate" type="date"><br></div>
         `;
         document.getElementById('contactMode').onchange = updateContactSelection;
         updateContactSelection();
+        document.getElementById('contactTime').onchange = () => {
+            document.getElementById('customDateContact').style.display = document.getElementById('contactTime').value === 'custom' ? 'block' : 'none';
+        };
     }
 }
 
@@ -1063,9 +1070,7 @@ function saveQuickAdd() {
             name: document.getElementById('quickName').value,
             importance: document.getElementById('quickImportance').value,
             quality: document.getElementById('quickQuality').value,
-            code: document.getElementById('quickCode').value,
             position: document.getElementById('quickPosition').value,
-            contact: document.getElementById('quickContact').value,
             tags: Array.from((document.getElementById('quickTags') || {}).selectedOptions || []).map(o => o.value),
             addedDate: new Date().toLocaleDateString(),
             lastContactDate: (document.getElementById('quickLastContact') && document.getElementById('quickLastContact').value) ? document.getElementById('quickLastContact').value : new Date().toISOString().split('T')[0],
@@ -1093,7 +1098,6 @@ function saveQuickAdd() {
             quality: document.getElementById('quickQuality').value,
             code: document.getElementById('quickCode').value,
             position: document.getElementById('quickPosition').value,
-            contact: document.getElementById('quickContact').value,
             tags: Array.from((document.getElementById('quickTags') || {}).selectedOptions || []).map(o => o.value),
             addedDate: new Date().toLocaleDateString(),
             lastContactDate: (document.getElementById('quickLastContact') && document.getElementById('quickLastContact').value) ? document.getElementById('quickLastContact').value : new Date().toISOString().split('T')[0],
@@ -1127,19 +1131,47 @@ function saveQuickAdd() {
             const name = manualNameEl ? manualNameEl.value : '';
             const suggestion = manualActionEl ? manualActionEl.value : '';
             const reward = parseInt(manualRewardEl ? manualRewardEl.value : 10) || 10;
-            const timeRange = manualTimeEl ? manualTimeEl.value : '本周';
+            const timeRange = manualTimeEl ? manualTimeEl.value : 'this_week';
+            let startDate;
+            if (timeRange === 'today') {
+                startDate = new Date().toISOString().slice(0,10);
+            } else if (timeRange === 'tomorrow') {
+                const tomorrow = new Date();
+                tomorrow.setDate(tomorrow.getDate() + 1);
+                startDate = tomorrow.toISOString().slice(0,10);
+            } else if (timeRange === 'custom') {
+                const customDateEl = document.getElementById('manualCustomDate');
+                startDate = customDateEl.value;
+                if (!startDate) { alert('请选择日期'); return; }
+            } else {
+                startDate = getWeekStartDate(timeRange);
+            }
             if (!name) { alert('名称不能为空'); return; }
-            tasks.push({ name, suggestion, urgency: 0, daysSince: 0, completed: false, type: 'manual', reward: Math.min(20, Math.max(1, reward)), timeRange });
-            addToCalendar({ title: name, start: getWeekStartDate(timeRange), color: '#e74c3c' }); // 添加到日历
+            tasks.push({ name, suggestion, urgency: 0, daysSince: 0, completed: false, type: 'manual', reward: Math.min(20, Math.max(1, reward)), timeRange, startDate });
+            addToCalendar({ title: name, start: startDate, color: '#e74c3c' }); // 添加到日历
         } else if (subType === 'contact') {
             // 使用原有选择逻辑：从 #contactSelection 中读取选中项并添加任务
             const selected = Array.from(document.querySelectorAll('#contactSelection input:checked')).map(input => input.value);
             const timeRangeEl = document.getElementById('contactTime');
-            const timeRange = timeRangeEl ? timeRangeEl.value : '本周';
+            const timeRange = timeRangeEl ? timeRangeEl.value : 'this_week';
+            let startDate;
+            if (timeRange === 'today') {
+                startDate = new Date().toISOString().slice(0,10);
+            } else if (timeRange === 'tomorrow') {
+                const tomorrow = new Date();
+                tomorrow.setDate(tomorrow.getDate() + 1);
+                startDate = tomorrow.toISOString().slice(0,10);
+            } else if (timeRange === 'custom') {
+                const customDateEl = document.getElementById('contactCustomDate');
+                startDate = customDateEl.value;
+                if (!startDate) { alert('请选择日期'); return; }
+            } else {
+                startDate = getWeekStartDate(timeRange);
+            }
             selected.forEach(name => {
-                tasks.push({ name, suggestion: '打电话', urgency: 50, daysSince: 0, completed: false, type: 'manual', reward: 10, timeRange });
+                tasks.push({ name, suggestion: '打电话', urgency: 50, daysSince: 0, completed: false, type: 'manual', reward: 10, timeRange, startDate });
             });
-            addToCalendar({ title: `联系客户 (${selected.length}个)`, start: getWeekStartDate(timeRange), color: '#e74c3c' });
+            addToCalendar({ title: `联系客户 (${selected.length}个)`, start: startDate, color: '#e74c3c' });
         }
         displayTasks();
         updateCalendarEvents();
@@ -1154,7 +1186,7 @@ function saveQuickAdd() {
 function getWeekStartDate(timeRange) {
     const today = new Date();
     const start = new Date(today.setDate(today.getDate() - today.getDay() + 1)); // 周一
-    if (timeRange === '本周+下周') {
+    if (timeRange === 'this_next_week') {
         start.setDate(start.getDate() + 7);
     }
     return start.toISOString().slice(0,10);
@@ -1229,4 +1261,24 @@ function updateSelect(type, index, field, value) {
     relations[type][index][field] = value;
     saveData();
     renderLists(); // 刷新表格
+}
+
+// 显示日历当天详情
+function showCalendarDetail(dateStr) {
+    const list = document.getElementById('calendarDetailList');
+    list.innerHTML = '';
+    const events = _calendarInstance.getEvents().filter(e => e.startStr === dateStr);
+    events.forEach(ev => {
+        const li = document.createElement('li');
+        li.innerText = ev.title;
+        list.appendChild(li);
+    });
+    if (events.length === 0) {
+        list.innerHTML = '<li>当天无事件</li>';
+    }
+    document.getElementById('calendarDetailModal').style.display = 'flex';
+}
+
+function closeCalendarDetailModal() {
+    document.getElementById('calendarDetailModal').style.display = 'none';
 }
